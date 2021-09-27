@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "Debug LC3 Simulator",
+      "command": "/usr/bin/gcc",
+      "args": ["-g", "-std=c99", "${file}", "-o", "${fileDirname}/simulate"],
+      "options": {
+        "cwd": "/usr/bin"
+      },
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

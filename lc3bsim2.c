@@ -5,7 +5,7 @@
 
     Name 1: Masaad Khan
     Name 2: Rithvik Dyava
-    UTEID 1: UT EID of the first partner
+    UTEID 1: mak4668
     UTEID 2: UT EID of the second partner
 */
 
@@ -42,7 +42,7 @@ void process_instruction(void);
 /* Main memory.                                                */
 /***************************************************************/
 
-uint8_t MEMORY[WORDS_IN_MEM][2];
+int MEMORY[WORDS_IN_MEM][2];
 
 /***************************************************************/
 /* LC-3b State info.                                           */
@@ -56,7 +56,7 @@ struct System_Latches NEXT_LATCHES;
 /***************************************************************/
 /* A cycle counter.                                            */
 /***************************************************************/
-int INSTRUCTION_COUNT; // todo: look at this in depth later
+int INSTRUCTION_COUNT;
 
 /***************************************************************/
 /*                                                             */
@@ -297,7 +297,7 @@ void load_program(char *program_filename) {
 	    exit(-1);
     }
 
-    /* Write the word to memory array. */ // todo: make sure that this is working right
+    /* Write the word to memory array. */
     printf("Made it here, program_base: %x, %d\n", program_base, ii);
     MEMORY[program_base + ii][0] = word & 0x00FF;
     MEMORY[program_base + ii][1] = (word >> 8) & 0x00FF;
@@ -557,141 +557,220 @@ update_cc(int16_t value) {
   }
 }
 
-// todo: what if there is self-modifying code that changes the assembly
 void
 add_instr(uint16_t instr) {
-  // if (GET_DR(instr)) {
-    
-  // }
-  if (GET_IMM_OR_REG_B5(instr) == REGISTER) {
-    NEXT_LATCHES.REGS[GET_DR(instr)] = CURRENT_LATCHES.REGS[GET_SR1(instr) + CURRENT_LATCHES.REGS[GET_SR2(instr)]];
-  } else {
-    NEXT_LATCHES.REGS[GET_DR(instr)] = CURRENT_LATCHES.REGS[GET_SR1(instr)] + SEXT(GET_IMM5(instr), 0x10);
-  }
+  uint8_t SR1 = GET_SR1(instr);
+  uint8_t DR = GET_DR(instr);
 
-  update_cc(NEXT_LATCHES.REGS[GET_DR(instr)]);
+  if (GET_IMM_OR_REG_B5(instr) == REGISTER) {
+    uint8_t SR2 = GET_SR2(instr);
+    NEXT_LATCHES.REGS[DR] = CURRENT_LATCHES.REGS[SR1] + CURRENT_LATCHES.REGS[SR2];
+  } else {
+    int16_t IMM5 = SEXT(GET_IMM5(instr), SEXT_5BITS);
+    NEXT_LATCHES.REGS[DR] = CURRENT_LATCHES.REGS[SR1] + IMM5;
+  }
+  
+  update_cc(NEXT_LATCHES.REGS[DR]);
 }
 
 void
 and_instr(uint16_t instr) {
-  if (GET_IMM_OR_REG_B5(instr) == REGISTER){
-    NEXT_LATCHES.REGS[GET_DR(instr)] = CURRENT_LATCHES.REGS[GET_SR1(instr) & CURRENT_LATCHES.REGS[GET_SR2(instr)]];
+  uint8_t DR = GET_DR(instr);
+  uint8_t SR1 = GET_SR1(instr);
+
+  if (GET_IMM_OR_REG_B5(instr) == REGISTER) {
+    uint8_t SR2 = GET_SR2(instr);
+    NEXT_LATCHES.REGS[DR] = CURRENT_LATCHES.REGS[SR1] & CURRENT_LATCHES.REGS[SR2];
   } else {
-    NEXT_LATCHES.REGS[GET_DR(instr)] = CURRENT_LATCHES.REGS[GET_SR1(instr)] & SEXT(GET_IMM5(instr), 0x10);
+    int16_t IMM5 = SEXT(GET_IMM5(instr), SEXT_5BITS);
+    NEXT_LATCHES.REGS[DR] = CURRENT_LATCHES.REGS[SR1] & IMM5;
   }
 
-  update_cc(NEXT_LATCHES.REGS[GET_DR(instr)]);
+  update_cc(NEXT_LATCHES.REGS[DR]);
 }
 
 void
-br_instr(uint16_t instr) {
+br_instr(uint16_t instr) { //check pc
   bool BEN = (GET_CC_N(instr) && CURRENT_LATCHES.N) ||
              (GET_CC_Z(instr) && CURRENT_LATCHES.Z) ||
              (GET_CC_P(instr) && CURRENT_LATCHES.P);
 
   if (BEN) {
-    NEXT_LATCHES.PC = NEXT_LATCHES.PC + LSHIFT(SEXT(GET_PCOFFSET9(instr), 0x100));
-  } else {
-    // todo: double check that you do nothing here...
+    int16_t PCOFFSET9 = LSHIFT(SEXT(GET_PCOFFSET9(instr), SEXT_9BITS));
+    NEXT_LATCHES.PC = NEXT_LATCHES.PC + PCOFFSET9;
   }
 }
 
 void
 jmp_ret_instr(uint16_t instr) {
-  // todo: check for valid PC
-  uint16_t jmp_pc = GET_BASE_R(instr);
-  CHECK_VALID_PC(jmp_pc);
-  NEXT_LATCHES.PC = jmp_pc;
+  // todo: fix the 32 bit hex digit print to dump
+  uint8_t BASE_R = GET_BASE_R(instr);
+  uint16_t JMP_PC = CURRENT_LATCHES.REGS[BASE_R];
+  NEXT_LATCHES.PC = JMP_PC;
 }
 
 void
 jsr_jsrr_instr(uint16_t instr) {
-  if(GET_IMM_OR_REG_B11(instr) == REGISTER){
-    NEXT_LATCHES.PC = NEXT_LATCHES.REGS[GET_BASE_R(instr)];
-  }
-  else{
-    NEXT_LATCHES.PC += LSHIFT(SEXT(GET_PCOFFSET11(instr), 0x400));
+  if(GET_IMM_OR_REG_B11(instr) == REGISTER) {
+    uint8_t BASE_R = GET_BASE_R(instr);
+    NEXT_LATCHES.PC = CURRENT_LATCHES.REGS[BASE_R];
+  } else {
+    int16_t PCOFFSET11 = LSHIFT(SEXT(GET_PCOFFSET11(instr), SEXT_11BITS));
+    NEXT_LATCHES.PC = NEXT_LATCHES.PC + PCOFFSET11;
   }
 }
 
 void
 ldb_instr(uint16_t instr) {
-  // todo: ig we should always be checking for bad pc values in OS, etc
-  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[GET_BASE_R(instr)] + SEXT(GET_BOFFSET6(instr), 0x20));
+  uint8_t DR = GET_DR(instr);
+  uint8_t BASE_R = GET_BASE_R(instr);
+  int16_t BOFFSET6 = SEXT(GET_BOFFSET6(instr), SEXT_6BITS);
+
+  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6);
+
   printf("Check LDB whether we are SEXT this properly\n");
-  printf("Value: %x vs %x\n", SEXT(SET_MEMORY(MEMORY[addr][1], MEMORY[addr][0]), 0x8000), (int16_t)SET_MEMORY(MEMORY[addr][1], MEMORY[addr][0]));
-  NEXT_LATCHES.REGS[GET_DR(instr)] = SEXT(SET_MEMORY(MEMORY[addr][1], MEMORY[addr][0]), 0x8000);
-  update_cc(NEXT_LATCHES.REGS[GET_DR(instr)]);
+
+  #if (DEBUG)
+  printf("BOFFSET6: %x, BASE_R: %x\n", BOFFSET6, CURRENT_LATCHES.REGS[BASE_R]);
+  printf("This is our address: x%x\n", (CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6));
+  #endif
+
+  if (EVEN(CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6)) {
+    NEXT_LATCHES.REGS[DR] = SEXT(MEMORY[addr][HIGH_BYTE], SEXT_8BITS);
+  } else {
+    NEXT_LATCHES.REGS[DR] = SEXT(MEMORY[addr][LOW_BYTE], SEXT_8BITS);
+  }
+
+  update_cc(NEXT_LATCHES.REGS[DR]);
+
+  #if (DEBUG)
+  printf("Value after LDB in R[%d]: %x\n", DR, NEXT_LATCHES.REGS[DR]);
+  #endif
 }
 
 void
 ldw_instr(uint16_t instr) {
-  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[GET_BASE_R(instr)] + SEXT(GET_OFFSET6(instr), 0x20));
-  NEXT_LATCHES.REGS[GET_DR(instr)] = SEXT(SET_MEMORY(MEMORY[addr][1], MEMORY[addr][0]), 0x8000);
-  update_cc(NEXT_LATCHES.REGS[GET_DR(instr)]);
+  uint8_t DR = GET_DR(instr);
+  uint8_t BASE_R = GET_BASE_R(instr);
+  int16_t OFFSET6 = LSHIFT(SEXT(GET_OFFSET6(instr), SEXT_6BITS));
+
+  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[BASE_R] + OFFSET6);
+
+  #if (DEBUG)
+  printf("OFFSET6: %x, BASE_R: %x\n", OFFSET6, CURRENT_LATCHES.REGS[BASE_R]);
+  printf("This is our address: x%x\n", (CURRENT_LATCHES.REGS[BASE_R] + OFFSET6));
+  #endif
+
+  NEXT_LATCHES.REGS[DR] = SET_MEMORY(MEMORY[addr][HIGH_BYTE], MEMORY[addr][LOW_BYTE]); 
+
+  update_cc(NEXT_LATCHES.REGS[DR]);
+
+  #if (DEBUG)
+  printf("Value after LDW in R[%d]: %x\n", DR, NEXT_LATCHES.REGS[DR]);
+  #endif
 }
 
 void
-lea_instr(uint16_t instr) {
-  NEXT_LATCHES.REGS[GET_DR(instr)] = NEXT_LATCHES.PC + LSHIFT(SEXT(GET_PCOFFSET9(instr), 0x100));
+lea_instr(uint16_t instr) { //check pc
+  uint8_t DR = GET_DR(instr);
+  int16_t OFFSET9 = LSHIFT(SEXT(GET_PCOFFSET9(instr), SEXT_9BITS));
+
+  NEXT_LATCHES.REGS[DR] = NEXT_LATCHES.PC + OFFSET9;
+
+  #if (DEBUG)
+  printf("This is the saved value in R[%d]: %x\n", DR, NEXT_LATCHES.REGS[DR]);
+  #endif  
 }
 
 void
 shft_instr(uint16_t instr) {
-  // todo: do we check for negative shift amt
-  if (GET_SHF_TYPE(instr) == LSHF) {
-    NEXT_LATCHES.REGS[GET_DR(instr)] = LSHFT(CURRENT_LATCHES.REGS[GET_SR(instr)], GET_AMOUNT4(instr));
-  } else if (GET_SHF_TYPE(instr) == RSHFL) {
+  uint8_t DR = GET_DR(instr);
+  uint8_t SR = GET_SR(instr);
+  uint8_t SHF_TYPE = GET_SHF_TYPE(instr);
+  uint8_t AMOUNT4 = GET_AMOUNT4(instr);
+
+  if (SHF_TYPE == LSHF) {
+    NEXT_LATCHES.REGS[DR] = LSHFT(CURRENT_LATCHES.REGS[SR], AMOUNT4);
+  } else if (SHF_TYPE == RSHFL) {
     // todo: check logical right shift
-    NEXT_LATCHES.REGS[GET_DR(instr)] = RSHFTL(CURRENT_LATCHES.REGS[GET_SR(instr)], GET_AMOUNT4(instr));
-  } else if (GET_SHF_TYPE(instr) == RSHFA) {
+    NEXT_LATCHES.REGS[DR] = RSHFTL(CURRENT_LATCHES.REGS[SR], AMOUNT4);
+  } else if (SHF_TYPE == RSHFA) {
     // todo: check arithmetic right shift
-    NEXT_LATCHES.REGS[GET_DR(instr)] = RSHFTA(CURRENT_LATCHES.REGS[GET_SR(instr)], GET_AMOUNT4(instr));
+    NEXT_LATCHES.REGS[DR] = RSHFTA(CURRENT_LATCHES.REGS[SR], AMOUNT4);
   }
 
-  update_cc(NEXT_LATCHES.REGS[GET_DR(instr)]);
+  update_cc(NEXT_LATCHES.REGS[DR]);
 }
+
+// todo: we should only make values int16_t when needed, not other way around
 
 void
 stb_instr(uint16_t instr) {
-  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[GET_BASE_R(instr)] + SEXT(GET_BOFFSET6(instr), 0x20));
+  int8_t BOFFSET6 = SEXT(GET_BOFFSET6(instr), SEXT_6BITS);
+  uint8_t BASE_R = GET_BASE_R(instr);
+  uint8_t ST_SR = GET_ST_SR(instr);
+ 
+  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6);
 
-  if ((addr % 2) == 0) {
-    MEMORY[addr][0] = CURRENT_LATCHES.REGS[GET_SR(instr)];
+  #if (DEBUG)
+  printf("We are trying to STB into address: x%x\n", CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6);
+  #endif
+
+  if (EVEN(CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6)) {
+    MEMORY[addr][HIGH_BYTE] = CURRENT_LATCHES.REGS[ST_SR];
+
+    #if (DEBUG)
+    printf("Saved the value %x into %x\n", MEMORY[addr][HIGH_BYTE], CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6);
+    #endif
   } else {
-    MEMORY[addr][1] = CURRENT_LATCHES.REGS[GET_SR(instr)];
+    MEMORY[addr][LOW_BYTE] = CURRENT_LATCHES.REGS[ST_SR];
+
+    #if (DEBUG)
+    printf("Saved the value %x into %x\n", MEMORY[addr][LOW_BYTE], CURRENT_LATCHES.REGS[BASE_R] + BOFFSET6);
+    #endif
   }
-    
 }
 
 void
 stw_instr(uint16_t instr) {
-  // todo: ctrl + f make sure all next regs are on the left operands
-  // todo: fix this command
-  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[GET_BASE_R(instr)] + LSHIFT(SEXT(GET_OFFSET6(instr), 0x20)));
-  MEMORY[addr][0] = CURRENT_LATCHES.REGS[GET_SR(instr)] & 0xFF;
-  MEMORY[addr][1] = (CURRENT_LATCHES.REGS[GET_SR(instr)] & 0xFF00) >> 8;
-  // ((uint16_t*)(&MEMORY[addr][0]))[0] = 
+  uint8_t ST_SR = GET_ST_SR(instr);
+  uint8_t BASE_R = GET_BASE_R(instr);
+  int16_t OFFSET6 = LSHIFT(SEXT(GET_OFFSET6(instr), SEXT_6BITS));
+
+  #if (DEBUG)
+  printf("OFFSET6: %x, BASE_R: %x\n", OFFSET6, CURRENT_LATCHES.REGS[BASE_R]);
+  printf("This is our address: x%x\n", (CURRENT_LATCHES.REGS[BASE_R] + OFFSET6));
+  #endif
+
+  uint16_t addr = ADDRESS(CURRENT_LATCHES.REGS[BASE_R] + OFFSET6);
+
+  MEMORY[addr][LOW_BYTE] = SET_LOW_BYTE(CURRENT_LATCHES.REGS[ST_SR]);
+  MEMORY[addr][HIGH_BYTE] = SET_HIGH_BYTE(CURRENT_LATCHES.REGS[ST_SR]);
 }
 
 void
 trap_instr(uint16_t instr) {
-  // RUN_BIT = false; // todo: check for trap x25 (HALT)
+  uint16_t TRAPVECT8 = LSHIFT(ZEXT(GET_TRAPVECT8(instr)));
+  uint16_t addr = ADDRESS(TRAPVECT8);
 
-  NEXT_LATCHES.REGS[7] = NEXT_LATCHES.PC;
-  uint16_t addr = ADDRESS(LSHIFT(ZEXT(GET_TRAPVECT8(instr))));
-  NEXT_LATCHES.PC = SET_MEMORY(MEMORY[addr][1], MEMORY[addr][0]); //todo: zext
+  NEXT_LATCHES.REGS[RETURN_REG] = NEXT_LATCHES.PC;
+  NEXT_LATCHES.PC = SET_MEMORY(MEMORY[addr][HIGH_BYTE], MEMORY[addr][LOW_BYTE]);
 }
 
 void
 xor_not_instr(uint16_t instr) {
+  uint8_t DR = GET_DR(instr);
+  uint8_t SR1 = GET_SR1(instr);
+
   if (GET_IMM_OR_REG_B5(instr) == REGISTER) {
-    NEXT_LATCHES.REGS[GET_DR(instr)] = CURRENT_LATCHES.REGS[GET_SR1(instr) ^ CURRENT_LATCHES.REGS[GET_SR2(instr)]];
+    uint8_t SR2 = GET_SR2(instr);
+    NEXT_LATCHES.REGS[DR] = CURRENT_LATCHES.REGS[SR1] ^ CURRENT_LATCHES.REGS[SR2];
   } else {
-    NEXT_LATCHES.REGS[GET_DR(instr)] = CURRENT_LATCHES.REGS[GET_SR1(instr)] ^ SEXT(GET_IMM5(instr), 0x10);
+    int16_t IMM5 = SEXT(GET_IMM5(instr), SEXT_5BITS);
+    NEXT_LATCHES.REGS[DR] = CURRENT_LATCHES.REGS[SR1] ^ IMM5;
   }
 
-  update_cc(NEXT_LATCHES.REGS[GET_DR(instr)]);
+  update_cc(NEXT_LATCHES.REGS[DR]);
 }
 
 void process_instruction(void){
@@ -704,13 +783,17 @@ void process_instruction(void){
    *       -Update NEXT_LATCHES
    */     
 
-  printf("Current PC: 0x%X\n", CURRENT_LATCHES.PC);
-  printf("Instruction: %x%x\n", MEMORY[ADDRESS(CURRENT_LATCHES.PC)][1], MEMORY[ADDRESS(CURRENT_LATCHES.PC)][0]);
+  uint16_t addr = ADDRESS(CURRENT_LATCHES.PC);
   NEXT_LATCHES.PC += 2;
 
-  uint16_t instruction = SET_MEMORY(MEMORY[ADDRESS(CURRENT_LATCHES.PC)][1], MEMORY[ADDRESS(CURRENT_LATCHES.PC)][0]);
+  uint16_t instruction = SET_MEMORY(MEMORY[addr][HIGH_BYTE], MEMORY[addr][LOW_BYTE]);
 
+  #if (DEBUG)
+  printf("Current PC: 0x%X\n", CURRENT_LATCHES.PC);
+  printf("Instruction: %x%x\n", MEMORY[addr][HIGH_BYTE], MEMORY[addr][LOW_BYTE]);
   printf("Going into instruction %s\n", opcode_str[GET_OPCODE(instruction)]);
+  #endif
+
   if (GET_OPCODE(instruction) == ADD) {
     add_instr(instruction);
   } else if (GET_OPCODE(instruction) == AND) {

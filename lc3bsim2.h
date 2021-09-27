@@ -40,6 +40,26 @@ enum opcode {
   INVALID = 0xFF,
 };
 
+#define string_equal(str1, str2) ((bool)(strcmp(str1, str2) == 0))
+
+#define EVEN(value) (((uint16_t)value) % 2)
+#define ADDRESS(addr) (((uint16_t)addr) >> 1)
+
+#define LSHFT(reg, amt4) (((uint16_t)reg) << amt4)
+#define RSHFTL(reg, amt4) (((uint16_t)reg) >> amt4)
+#define RSHFTA(reg, amt4) (((int16_t)reg) >> amt4)
+
+#define SET_MEMORY(mem1, mem2) ((((uint8_t)mem1) << 8) | ((uint8_t)mem2))
+#define SET_LOW_BYTE(mem) (((uint16_t)mem) & 0xFF)
+#define SET_HIGH_BYTE(mem) ((((uint16_t)mem) & 0xFF00) >> 8)
+
+#define SEXT(val, sig_ext) (((uint16_t)val) | (0 - (((uint16_t)val) & sig_ext)))
+#define ZEXT(x) (((uint16_t)x) & 0x00FF)
+
+#define LSHIFT(pc_off) (((uint16_t)pc_off) << 1)
+
+// #define CHECK_VALID_PC(x) (x)
+
 // Magic Numbers
 #define REGISTER 0
 #define IMMEDIATE 1
@@ -48,7 +68,17 @@ enum opcode {
 #define RSHFL 1
 #define RSHFA 3
 
-#define string_equal(str1, str2) ((bool)(strcmp(str1, str2) == 0))
+#define SEXT_11BITS 0x400
+#define SEXT_9BITS  0x100
+#define SEXT_8BITS  0x80
+#define SEXT_6BITS  0x20
+#define SEXT_5BITS  0x10
+
+
+#define LOW_BYTE 0
+#define HIGH_BYTE 1
+
+#define RETURN_REG 7
 
 // Getters
 #define GET_OPCODE(instr) ((((uint16_t)instr) & 0xf000) >> 12)
@@ -77,18 +107,3 @@ enum opcode {
 #define GET_CC_P(instr) ((((uint16_t)instr) & 0x0200) >> 9)
 
 #define GET_TRAPVECT8(instr) ((((uint16_t)instr) & 0x00ff) >> 0)
-
-#define ADDRESS(addr) (((uint16_t)addr) >> 1)
-
-#define SET_MEMORY(mem1, mem2) ((((uint8_t)mem1) << 8) | ((uint8_t)mem2))
-
-#define LSHFT(reg, amt4) (((uint16_t)reg) << amt4)
-#define RSHFTL(reg, amt4) (((uint16_t)reg) >> amt4)
-#define RSHFTA(reg, amt4) (((int16_t)reg) >> amt4)
-
-#define LSHIFT(pc_off) (((uint16_t)pc_off) << 1)
-
-#define SEXT(val, sig_ext) (((uint16_t)val) | (0 - (((uint16_t)val) & sig_ext)))
-#define ZEXT(x) (((uint16_t)x) & 0x00FF)
-
-#define CHECK_VALID_PC(x) (x)
