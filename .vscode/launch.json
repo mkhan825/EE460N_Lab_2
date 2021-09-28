@@ -10,7 +10,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "/home/ecelrc/students/mkhan1/EE460N_Lab_2/simulate",
-      "args": ["/home/ecelrc/students/mkhan1/EE460N_Lab_2/scripts/binary/br_label_far_top.obj"],
+      "args": ["/home/ecelrc/students/mkhan1/EE460N_Lab_2/scripts/binary/ldb1-py.obj"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

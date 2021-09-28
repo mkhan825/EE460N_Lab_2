@@ -15,6 +15,9 @@ def add_end(file):
   file.write("HALT\n")
   file.write(".END\n")
 
+def add_no_halt_end(file):
+  file.write(".END\n")
+
 def add_br_end(file):
   file.write("A  HALT\n")
   file.write(".END\n")
@@ -252,10 +255,12 @@ def generate_asm():
   # # 15 file
 
   test = "ldb1"
-  # todo: create tests specifically for lds across 32 locations
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
   file1.write("LEA R6, A\n")
+  file1.write("AND R1, R1 #0\n")
+  for i in range(13):
+    file1.write("ADD R1, R1, #1\n")
   file1.write("LDB R6, R6, #-32\n")
   add_br_end(file1)
   file1.close()
@@ -268,7 +273,11 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("A  LEA R6, A\n")
   file1.write("LDB R6, R6, #31\n")
+  file1.write("AND R1, R1 #0\n")
+  for i in range(12):
+    file1.write("ADD R1, R1, #1\n")
   add_end(file1)
   file1.close()
 
@@ -280,9 +289,12 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("AND R1, R1, #0\n")
   file1.write("LEA R6, A\n")
-  file1.write("LDW R6, R6, #-32\n")
-  add_br_end(file1)
+  for i in range(31):
+    file1.write("ADD R1, R1, #1\n")
+  file1.write("A  LDW R6, R6, #-32\n")
+  add_end(file1)
   file1.close()
 
   os.system("../assembler.linux assembly/"+test+"-py.asm binary/"+test+"-py.obj")
@@ -293,7 +305,11 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
-  file1.write("LDW R6, R6, #31\n")
+  file1.write("AND R1, R1, #0\n")
+  file1.write("LEA R6, A\n")
+  file1.write("A  LDW R6, R6, #31\n")
+  for i in range(30):
+    file1.write("ADD R1, R1, #1\n")
   add_end(file1)
   file1.close()
 
@@ -324,11 +340,12 @@ def generate_asm():
   os.system("../assembler.linux assembly/"+test+"-py.asm binary/"+test+"-py.obj")
 
   # # 20 file
-  # todo: make these shf tests better! 
   test = "lshf"
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("AND R6, R6, #0\n")
+  file1.write("NOT R6, R6\n")
   file1.write("LSHF R6, R6, #15\n")
   add_end(file1)
   file1.close()
@@ -341,6 +358,8 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("AND R6, R6, #0\n")
+  file1.write("NOT R6, R6\n")
   file1.write("RSHFL R6, R6, #15\n")
   add_end(file1)
   file1.close()
@@ -353,6 +372,8 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("AND R6, R6, #0\n")
+  file1.write("NOT R6, R6\n")
   file1.write("RSHFA R6, R6, #15\n")
   add_end(file1)
   file1.close()
@@ -362,14 +383,22 @@ def generate_asm():
   # # 21 file
 
   test = "stb1"
-  #todo: make the tests for st better
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
   file1.write("LEA R6, A\n")
+  file1.write("AND R5, R5, #0\n")
   file1.write("NOT R5, R5\n")
-  file1.write("A  STB R5, R6, #0\n")
+  file1.write("LSHF R5, R5, #4\n")
+  file1.write("STB R5, R6, #1\n")
+
+  file1.write("ADD R7, R7, #15\n")
+  file1.write("ADD R7, R7, #15\n")
+  file1.write("ADD R5, R7, #0\n")
+  file1.write("STB R5, R6, #0\n")
+
   file1.write("LDW R6, R6, #0\n")
-  add_end(file1)
+  file1.write("A  NOP\n")
+  add_no_halt_end(file1)
   file1.close()
 
   os.system("../assembler.linux assembly/"+test+"-py.asm binary/"+test+"-py.obj")
@@ -380,10 +409,24 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
-  file1.write("LEA R6, A\n")
+  file1.write("AND R1, R1, #0\n")
+  file1.write("LEA R4, A\n")
+  file1.write("LEA R6, LOOP\n")
+  file1.write("LOOP  AND R5, R5, #0\n")
   file1.write("NOT R5, R5\n")
-  file1.write("STB R5, R6, #31\n")
-  add_end(file1)
+  file1.write("LSHF R5, R5, #4\n")
+  file1.write("STB R5, R4, #-31\n")
+
+  file1.write("ADD R7, R7, #15\n")
+  file1.write("ADD R7, R7, #15\n")
+  file1.write("ADD R5, R7, #0\n")
+  for i in range(9):
+    file1.write("ADD R1, R1, #1\n")
+  file1.write("A  STB R5, R4, #-32\n")
+
+  file1.write("LDW R6, R6, #0\n")
+  file1.write("BR LOOP\n")
+  add_no_halt_end(file1)
   file1.close()
 
   os.system("../assembler.linux assembly/"+test+"-py.asm binary/"+test+"-py.obj")
@@ -394,7 +437,18 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
-  file1.write("STW R6, R6, #-32\n")
+  file1.write("AND R6, R6, #0\n")
+  file1.write("NOT R6, R6\n")
+  file1.write("LSHF R6, R6, #12\n")
+  file1.write("ADD R6, R6, R7\n")
+  file1.write("ADD R6, R6, #15\n")
+  file1.write("ADD R6, R6, #15\n")
+  file1.write("LEA R5, A\n")
+  file1.write("LOOP  AND R1, R1, #0\n")
+  for i in range(31):
+    file1.write("ADD R1, R1, #1\n")
+  file1.write("A  STW R6, R5, #-32\n")
+  file1.write("BR LOOP\n")
   add_end(file1)
   file1.close()
 
@@ -406,8 +460,19 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
-  file1.write("STW R6, R6, #31\n")
-  add_end(file1)
+  file1.write("AND R1, R1, #0\n")
+  file1.write("AND R6, R6, #0\n")
+  file1.write("NOT R6, R6\n")
+  file1.write("LSHF R6, R6, #12\n")
+  file1.write("ADD R6, R6, #7\n")
+  file1.write("ADD R6, R6, #15\n")
+  file1.write("ADD R6, R6, #15\n")
+  file1.write("LEA R7, A\n")
+  file1.write("A  STW R6, R7, #31\n")
+  for i in range(30):
+    file1.write("ADD R1, R1, #1\n")
+  file1.write("LSHF R6, R6, #0\n")
+  add_no_halt_end(file1)
   file1.close()
 
   os.system("../assembler.linux assembly/"+test+"-py.asm binary/"+test+"-py.obj")

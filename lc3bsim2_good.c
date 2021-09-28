@@ -6,7 +6,7 @@
     Name 1: Masaad Khan
     Name 2: Rithvik Dyava
     UTEID 1: mak4668
-    UTEID 2: rd29228
+    UTEID 2: UT EID of the second partner
 */
 
 /***************************************************************/
@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "lc3bsim2.h"
 
 /***************************************************************/
 /*                                                             */
@@ -37,25 +38,25 @@
 
 void process_instruction(void);
 
-/***************************************************************/
-/* A couple of useful definitions.                             */
-/***************************************************************/
-#define FALSE 0
+/***************************************************************/	
+/* A couple of useful definitions.                             */	
+/***************************************************************/	
+#define FALSE 0	
 #define TRUE  1
 
-/***************************************************************/
-/* Use this to avoid overflowing 16 bits on the bus.           */
-/***************************************************************/
+/***************************************************************/	
+/* Use this to avoid overflowing 16 bits on the bus.           */	
+/***************************************************************/	
 #define Low16bits(x) ((x) & 0xFFFF)
 
 /***************************************************************/
 /* Main memory.                                                */
 /***************************************************************/
-/* MEMORY[A][0] stores the least significant byte of word at word address A
-   MEMORY[A][1] stores the most significant byte of word at word address A 
+/* MEMORY[A][0] stores the least significant byte of word at word address A	
+   MEMORY[A][1] stores the most significant byte of word at word address A 	
 */
 
-#define WORDS_IN_MEM    0x08000 
+#define WORDS_IN_MEM 0x08000
 int MEMORY[WORDS_IN_MEM][2];
 
 /***************************************************************/
@@ -69,18 +70,18 @@ int MEMORY[WORDS_IN_MEM][2];
 
 int RUN_BIT;	/* run bit */
 
+struct System_Latches {
 
-typedef struct System_Latches_Struct{
-  int PC,		/* program counter */	
-  N,		/* n condition bit */	
-  Z,		/* z condition bit */	
-  P;		/* p condition bit */
-  int REGS[LC_3b_REGS]; /* register file. */
-} System_Latches;
+  int PC;
+  bool N;
+  bool Z;
+  bool P;
 
-/* Data Structure for Latch */
+  int REGS[MAX_NUM_REGS]; /* register file. */
+};
 
-System_Latches CURRENT_LATCHES, NEXT_LATCHES;
+struct System_Latches CURRENT_LATCHES;
+struct System_Latches NEXT_LATCHES;
 
 /***************************************************************/
 /* A cycle counter.                                            */
@@ -111,8 +112,7 @@ void help() {
 /* Purpose   : Execute a cycle                                 */
 /*                                                             */
 /***************************************************************/
-void cycle() {
-                                        
+void cycle() {                                                
   process_instruction();
   CURRENT_LATCHES = NEXT_LATCHES;
   INSTRUCTION_COUNT++;
@@ -128,7 +128,7 @@ void cycle() {
 void run(int num_cycles) {                                      
   int i;
 
-  if (RUN_BIT == FALSE) {
+  if (RUN_BIT == false) {
     printf("Can't simulate, Simulator is halted\n\n");
     return;
   }
@@ -136,7 +136,7 @@ void run(int num_cycles) {
   printf("Simulating for %d cycles...\n\n", num_cycles);
   for (i = 0; i < num_cycles; i++) {
     if (CURRENT_LATCHES.PC == 0x0000) {
-	    RUN_BIT = FALSE;
+	    RUN_BIT = false;
 	    printf("Simulator halted\n\n");
 	    break;
     }
@@ -152,7 +152,7 @@ void run(int num_cycles) {
 /*                                                             */
 /***************************************************************/
 void go() {                                                     
-  if (RUN_BIT == FALSE) {
+  if (RUN_BIT == false) {
     printf("Can't simulate, Simulator is halted\n\n");
     return;
   }
@@ -160,7 +160,7 @@ void go() {
   printf("Simulating...\n\n");
   while (CURRENT_LATCHES.PC != 0x0000)
     cycle();
-  RUN_BIT = FALSE;
+  RUN_BIT = false;
   printf("Simulator halted\n\n");
 }
 
@@ -207,7 +207,7 @@ void rdump(FILE * dumpsim_file) {
   printf("PC                : 0x%.4x\n", CURRENT_LATCHES.PC);
   printf("CCs: N = %d  Z = %d  P = %d\n", CURRENT_LATCHES.N, CURRENT_LATCHES.Z, CURRENT_LATCHES.P);
   printf("Registers:\n");
-  for (k = 0; k < LC_3b_REGS; k++)
+  for (k = 0; k < MAX_NUM_REGS; k++)
     printf("%d: 0x%.4x\n", k, CURRENT_LATCHES.REGS[k]);
   printf("\n");
 
@@ -218,7 +218,7 @@ void rdump(FILE * dumpsim_file) {
   fprintf(dumpsim_file, "PC                : 0x%.4x\n", CURRENT_LATCHES.PC);
   fprintf(dumpsim_file, "CCs: N = %d  Z = %d  P = %d\n", CURRENT_LATCHES.N, CURRENT_LATCHES.Z, CURRENT_LATCHES.P);
   fprintf(dumpsim_file, "Registers:\n");
-  for (k = 0; k < LC_3b_REGS; k++)
+  for (k = 0; k < MAX_NUM_REGS; k++)
     fprintf(dumpsim_file, "%d: 0x%.4x\n", k, CURRENT_LATCHES.REGS[k]);
   fprintf(dumpsim_file, "\n");
   fflush(dumpsim_file);
@@ -328,6 +328,7 @@ void load_program(char *program_filename) {
     }
 
     /* Write the word to memory array. */
+    printf("Made it here, program_base: %x, %d\n", program_base, ii);
     MEMORY[program_base + ii][0] = word & 0x00FF;
     MEMORY[program_base + ii][1] = (word >> 8) & 0x00FF;
     ii++;
@@ -357,7 +358,7 @@ void initialize(char *program_filename, int num_prog_files) {
   CURRENT_LATCHES.Z = 1;  
   NEXT_LATCHES = CURRENT_LATCHES;
     
-  RUN_BIT = TRUE;
+  RUN_BIT = true;
 }
 
 /***************************************************************/
@@ -406,101 +407,6 @@ int main(int argc, char *argv[]) {
    Begin your code here 	  			       */
 
 /***************************************************************/
-
-#define DEBUG 0
-
-enum run_type {
-  FINISH,
-  NOT_FINISH,
-};
-
-// Opcodes
-enum opcode {
-  ADD = 0x1,
-  AND = 0x5,
-  BR = 0x0,
-  JMP_RET = 0xC,
-  JSR_JSRR = 0x4,
-  LDB = 0x2,
-  LDW = 0x6,
-  LEA = 0xE,
-  SHFT = 0xD,
-  STB = 0x3,
-  STW = 0x7,
-  TRAP = 0xF,
-  XOR_NOT = 0x9,
-
-  INVALID = 0xFF,
-};
-
-#define string_equal(str1, str2) ((bool)(strcmp(str1, str2) == 0))
-
-#define EVEN(value) (((uint16_t)value) % 2)
-#define ADDRESS(addr) (((uint16_t)addr) >> 1)
-
-#define LSHFT(reg, amt4) (((uint16_t)reg) << amt4)
-#define RSHFTL(reg, amt4) (((uint16_t)reg) >> amt4)
-#define RSHFTA(reg, amt4) (((int16_t)reg) >> amt4)
-
-#define SET_MEMORY(mem1, mem2) ((((uint8_t)mem1) << 8) | ((uint8_t)mem2))
-#define GET_LOW_BYTE(mem) (((uint16_t)mem) & 0xFF)
-#define GET_HIGH_BYTE(mem) ((((uint16_t)mem) & 0xFF00) >> 8)
-
-#define SEXT(val, sig_ext) (((uint16_t)val) | (0 - (((uint16_t)val) & sig_ext)))
-#define ZEXT(x) (((uint16_t)x) & 0x00FF)
-
-#define LSHIFT(pc_off) (((uint16_t)pc_off) << 1)
-
-#define MASK_16_BITS(val) (((uint16_t)val) & 0xFFFF)
-#define MASK_8_BITS(val) ((uint8_t)(((uint16_t)val) & 0xFF))
-
-// Magic Numbers
-#define REGISTER 0
-#define IMMEDIATE 1
-
-#define LSHF 0
-#define RSHFL 1
-#define RSHFA 3
-
-#define SEXT_11BITS 0x400
-#define SEXT_9BITS  0x100
-#define SEXT_8BITS  0x80
-#define SEXT_6BITS  0x20
-#define SEXT_5BITS  0x10
-
-
-#define LOW_BYTE 0
-#define HIGH_BYTE 1
-
-#define RETURN_REG 7
-
-// Getters
-#define GET_OPCODE(instr) ((((uint16_t)instr) & 0xf000) >> 12)
-
-#define GET_DR(instr) ((((uint16_t)instr) & 0x0e00) >> 9)
-#define GET_SR(instr) ((((uint16_t)instr) & 0x01c0) >> 6)
-#define GET_ST_SR(instr) ((((uint16_t)instr) & 0x0e00) >> 9)
-#define GET_SR1(instr) ((((uint16_t)instr) & 0x01c0) >> 6)
-#define GET_SR2(instr) ((((uint16_t)instr) & 0x0007) >> 0)
-#define GET_BASE_R(instr) ((((uint16_t)instr) & 0x01c0) >> 6)
-
-#define GET_IMM_OR_REG_B5(instr) ((((uint16_t)instr) & 0x0020) >> 5)
-#define GET_IMM_OR_REG_B11(instr) ((((uint16_t)instr) & 0x0800) >> 11)
-#define GET_SHF_TYPE(instr) ((((uint16_t)instr) & 0x0030) >> 4)
-
-#define GET_IMM5(instr) ((((uint16_t)instr) & 0x001f) >> 0)
-#define GET_AMOUNT4(instr) ((((uint16_t)instr) & 0x000f) >> 0)
-
-#define GET_PCOFFSET9(instr) ((((uint16_t)instr) & 0x01ff) >> 0)
-#define GET_PCOFFSET11(instr) ((((uint16_t)instr) & 0x07ff) >> 0)
-#define GET_BOFFSET6(instr) ((((uint16_t)instr) & 0x003f) >> 0)
-#define GET_OFFSET6(instr) ((((uint16_t)instr) & 0x003f) >> 0)
-
-#define GET_CC_N(instr) ((((uint16_t)instr) & 0x0800) >> 11)
-#define GET_CC_Z(instr) ((((uint16_t)instr) & 0x0400) >> 10)
-#define GET_CC_P(instr) ((((uint16_t)instr) & 0x0200) >> 9)
-
-#define GET_TRAPVECT8(instr) ((((uint16_t)instr) & 0x00ff) >> 0)
 
 char* opcode_str[] = {"branch", "add", "ldb", "stb", "jsr_jsrr", "and", "ldw", 
                       "stw", "invalid", "xor_not", "invalid", "invalid", "jmp_ret",
