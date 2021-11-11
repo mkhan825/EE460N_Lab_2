@@ -126,6 +126,7 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("AND R0, R0, #0\n")
   file1.write("BRZ A\n")
   file1.write("ADD R6, R6, #-16\n")
   add_br_end(file1)
@@ -152,7 +153,9 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("ADD R0, R0, #-1\n")
   file1.write("BRN A\n")
+  file1.write("ADD R0, R0, #1\n")
   file1.write("ADD R6, R6, #-16\n")
   add_br_end(file1)
   file1.close()
@@ -178,6 +181,7 @@ def generate_asm():
 
   file1 = open("assembly/"+test+"-py.asm", "w")
   add_start(file1)
+  file1.write("AND R0, R0, #0\n")
   file1.write("BRNZ A\n")
   file1.write("ADD R6, R6, #-16\n")
   add_br_end(file1)
